@@ -1,0 +1,291 @@
+#==============================================================================
+# FontChange for RPG Maker VX Ace
+# By Damlee
+# Terms:
+# Use in free and commercial games
+# Credit: Damlee
+#------------------------------------------------------------------------------
+#  Allows players to change the game's font and size in real-time.
+#==============================================================================
+
+module FontManager
+  FONTS = ["Retro Gaming", "Arial", "Times New Roman", "Courier New"]
+# Change to your own fonts here
+# Default font is the first in the array, which in this case is "Retro Gaming"
+  MIN_SIZE = 12
+  MAX_SIZE = 36
+# Change to your own font size limit here
+# Default lowest is 12, default highest is 36
+  def self.font
+    $game_system.font_name ||= FONTS[0]
+  end
+
+  def self.font_size
+    $game_system.font_size ||= 20
+  end
+
+  def self.set_font(name)
+    return unless FONTS.include?(name)
+    $game_system.font_name = name
+    Font.default_name = name
+  end
+
+  def self.set_font_size(size)
+    return unless size.between?(MIN_SIZE, MAX_SIZE)
+    $game_system.font_size = size
+    Font.default_size = size
+  end
+
+  def self.reset_to_default
+    $game_system.font_name = FONTS[0]
+    $game_system.font_size = 20
+    Font.default_name = FONTS[0]
+    Font.default_size = 20
+  end
+end
+
+class Game_System
+  attr_accessor :font_name, :font_size
+
+  alias font_system_initialize initialize
+  def initialize
+    font_system_initialize
+    @font_name ||= FontManager::FONTS[0]
+    @font_size ||= 20
+  end
+end
+
+#==============================================================================
+# Data Manager
+#------------------------------------------------------------------------------
+#  Extends DataManager to save and load font settings per save file.
+#==============================================================================
+
+module DataManager
+  class << self
+    alias font_make_save_contents make_save_contents
+    alias font_extract_save_contents extract_save_contents
+  end
+
+  def self.make_save_contents
+    contents = font_make_save_contents
+    contents[:font_name] = $game_system.font_name
+    contents[:font_size] = $game_system.font_size
+    contents
+  end
+
+  def self.extract_save_contents(contents)
+    font_extract_save_contents(contents)
+    $game_system.font_name = contents[:font_name]
+    $game_system.font_size = contents[:font_size]
+    Font.default_name = $game_system.font_name
+    Font.default_size = $game_system.font_size
+  end
+end
+
+#==============================================================================
+# Window_FontOptions
+#------------------------------------------------------------------------------
+#  The main window for selecting fonts and adjusting font size.
+#==============================================================================
+
+class Window_FontOptions < Window_Command
+  def initialize
+    super(0, 0)
+    self.width = 300
+    self.height = fitting_height(3)
+    self.x = (Graphics.width - width) / 2
+    self.y = (Graphics.height - height) / 3
+    refresh
+    open
+    activate
+  end
+
+  def make_command_list
+    add_command("Change Font", :font)
+    add_command("Change Font Size", :size)
+    add_command("Back", :cancel)
+  end
+end
+
+#==============================================================================
+# Scene_FontSettings
+#------------------------------------------------------------------------------
+#  The main scene for selecting fonts and sizes.
+#==============================================================================
+
+class Scene_FontSettings < Scene_MenuBase
+  def start
+    super
+    @command_window = Window_FontOptions.new
+    @command_window.set_handler(:font, method(:goto_font_list))
+    @command_window.set_handler(:size, method(:goto_font_size))
+    @command_window.set_handler(:cancel, method(:return_to_menu))
+  end
+
+  def goto_font_list
+    SceneManager.call(Scene_FontList)
+  end
+
+  def goto_font_size
+    SceneManager.call(Scene_FontSize)
+  end
+
+  def return_to_menu
+    SceneManager.return
+  end
+end
+
+#==============================================================================
+# Window_FontList
+#------------------------------------------------------------------------------
+#  The font selection window.
+#==============================================================================
+
+class Window_FontList < Window_Command
+  def initialize
+    super(0, 0)
+    self.width = 300
+    self.height = fitting_height(FontManager::FONTS.size + 1)
+    self.x = (Graphics.width - width) / 2
+    self.y = (Graphics.height - height) / 3
+    refresh
+    select(FontManager::FONTS.index(FontManager.font) || 0)
+    activate
+  end
+
+  def make_command_list
+    FontManager::FONTS.each { |font| add_command(font, :change_font) }
+    add_command("Back", :cancel)
+  end
+end
+
+#==============================================================================
+# Scene_FontList
+#------------------------------------------------------------------------------
+#  Handles font selection.
+#==============================================================================
+
+class Scene_FontList < Scene_MenuBase
+  def start
+    super
+    @font_list_window = Window_FontList.new
+    @font_list_window.set_handler(:ok, method(:select_font))
+    @font_list_window.set_handler(:cancel, method(:return_to_font_menu))
+  end
+
+  def select_font
+    selected_font = FontManager::FONTS[@font_list_window.index]
+    FontManager.set_font(selected_font)
+    @font_list_window.refresh  # ✅ Keeps the window active after selecting
+    @font_list_window.activate # ✅ Fixes freezing issue
+  end
+
+  def return_to_font_menu
+    SceneManager.return
+  end
+end
+
+#==============================================================================
+# Window_FontSize
+#------------------------------------------------------------------------------
+#  The font size selection window.
+#==============================================================================
+
+class Window_FontSize < Window_Command
+  def initialize
+    super(0, 0)
+    self.width = 300
+    self.height = fitting_height(5)
+    self.x = (Graphics.width - width) / 2
+    self.y = (Graphics.height - height) / 3
+    refresh
+    activate
+  end
+
+  def make_command_list
+    add_command("- Decrease", :decrease, FontManager.font_size > FontManager::MIN_SIZE)
+    add_command("Size: #{FontManager.font_size}", :none, false)
+    add_command("+ Increase", :increase, FontManager.font_size < FontManager::MAX_SIZE)
+    add_command("Back", :cancel)
+  end
+
+  def refresh
+    clear_command_list
+    make_command_list
+    super
+  end
+end
+
+#==============================================================================
+# Scene_FontSize
+#------------------------------------------------------------------------------
+#  Handles font size selection.
+#==============================================================================
+
+class Scene_FontSize < Scene_MenuBase
+  def start
+    super
+    @size_window = Window_FontSize.new
+    @size_window.set_handler(:increase, method(:increase_size))
+    @size_window.set_handler(:decrease, method(:decrease_size))
+    @size_window.set_handler(:cancel, method(:return_to_font_menu))
+  end
+
+  def increase_size
+    FontManager.set_font_size(FontManager.font_size + 1)
+    @size_window.refresh  
+    @size_window.activate 
+  end
+
+  def decrease_size
+    FontManager.set_font_size(FontManager.font_size - 1)
+    @size_window.refresh  
+    @size_window.activate
+  end
+
+  def return_to_font_menu
+    SceneManager.return
+  end
+end
+
+#==============================================================================
+# Window_MenuCommand - Add "Font Settings" Option
+#------------------------------------------------------------------------------
+#  Adds the "Font Settings" option to the main menu.
+#==============================================================================
+
+class Window_MenuCommand < Window_Command
+  alias font_add_original_add_main_commands add_main_commands
+  def add_main_commands
+    font_add_original_add_main_commands
+    add_command("Font Settings", :font_settings, true)
+  end
+end
+
+class Scene_Menu < Scene_MenuBase
+  alias font_add_original_create_command_window create_command_window
+  def create_command_window
+    font_add_original_create_command_window
+    @command_window.set_handler(:font_settings, method(:goto_font_scene))
+  end
+
+  def goto_font_scene
+    SceneManager.call(Scene_FontSettings)
+  end
+end
+
+#==============================================================================
+# Scene_Title - Reset Font Settings
+#------------------------------------------------------------------------------
+#  Resets the font settings to the default when returning to the title screen.
+#==============================================================================
+
+class Scene_Title < Scene_Base
+  alias font_original_start start
+
+  def start
+    FontManager.reset_to_default
+    font_original_start
+  end
+end
