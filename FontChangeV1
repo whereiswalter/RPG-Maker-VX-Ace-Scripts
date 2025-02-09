@@ -4,6 +4,15 @@
 # Terms:
 # Use in free and commercial games
 # Credit: Damlee
+#==============================================================================
+# You can use script call and use these commands to change fonts anytime.
+# FontManager.set_font("Arial")
+# FontManager.set_font_size(24)
+# FontManager.reset_to_default
+# The player's chosen font can be called by:
+# Font.default_name = $game_system.font_name
+# Font.default_size = $game_system.font_size
+# It is that easy!
 #------------------------------------------------------------------------------
 #  Allows players to change the game's font and size in real-time.
 #==============================================================================
