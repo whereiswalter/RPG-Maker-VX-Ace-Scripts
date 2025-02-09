@@ -5,13 +5,13 @@
 # Use in free and commercial games
 # Credit: Damlee
 #==============================================================================
-# You can use script call and use these commands to change fonts anytime.
-# FontManager.set_font("Arial")
-# FontManager.set_font_size(24)
-# FontManager.reset_to_default
+# You can use script call and use these commands to change fonts in the NPC
+# dialogues as long as the font is in the Fonts folder of RMVXA's Graphics folder.
+# If there is not, make one yourself, and make sure the format of the font is in .ttf
+# FontManager.set_message_font("name")
+# FontManager.set_message_font_size(24)
 # The player's chosen font can be called by:
-# Font.default_name = $game_system.font_name
-# Font.default_size = $game_system.font_size
+# FontManager.reset_message_font
 # It is that easy!
 #------------------------------------------------------------------------------
 #  Allows players to change the game's font and size in real-time.
@@ -50,6 +50,41 @@ module FontManager
     $game_system.font_size = 20
     Font.default_name = FONTS[0]
     Font.default_size = 20
+  end
+
+  def self.set_message_font(name)
+    return unless FONTS.include?(name)
+    if SceneManager.scene.is_a?(Scene_Map)
+      message_window = SceneManager.scene.instance_variable_get(:@message_window)
+      if message_window
+        message_window.contents.font.name = name
+        message_window.contents.clear
+      end
+    end
+  end
+  
+  def self.set_message_font_size(size)
+    return unless size.between?(MIN_SIZE, MAX_SIZE)
+    if SceneManager.scene.is_a?(Scene_Map)
+      message_window = SceneManager.scene.instance_variable_get(:@message_window)
+      if message_window
+        message_window.contents.font.size = size
+        message_window.contents.clear
+      end
+    end
+  end
+
+  def self.reset_message_font
+    player_font = $game_system.font_name || FONTS[0]
+    player_size = $game_system.font_size || 20
+    if SceneManager.scene.is_a?(Scene_Map)
+      message_window = SceneManager.scene.instance_variable_get(:@message_window)
+      if message_window
+        message_window.contents.font.name = player_font
+        message_window.contents.font.size = player_size
+        message_window.contents.clear
+      end
+    end
   end
 end
 
