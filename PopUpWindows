@@ -1,0 +1,80 @@
+#==============================================================================
+# PopUpWindows
+# By Damlee
+# Terms:
+# Use in free and commercial games
+# Credit: Damlee
+#------------------------------------------------------------------------------
+#  This script opens separate windows for an image (face graphic) and a name
+#  whenever a specific script call is made. No message window is shown.
+#------------------------------------------------------------------------------
+# Script Call list:
+# pop_up_windows(facefilenamehere, faceindexhere, namehere)
+# Example:
+# pop_up_windows("People1", 7, "Grandma")
+# 
+# To close the pop up window
+# close_pop_up_windows
+#==============================================================================
+
+class Window_Face < Window_Base
+  def initialize(face_name, face_index)
+    super(0, Graphics.height - fitting_height(9), 120, fitting_height(4))
+    @face_name = face_name
+    @face_index = face_index
+    refresh
+  end
+
+  def refresh
+    contents.clear
+    draw_face(@face_name, @face_index, 0, 0) if @face_name
+  end
+
+  def update
+    super
+    self.y = Graphics.height - fitting_height(9)
+  end
+end
+
+class Window_Name < Window_Base
+  def initialize(name)
+    super(120, Graphics.height - fitting_height(6), window_width, fitting_height(1))
+    @name = name
+    refresh
+  end
+
+  def window_width
+    Graphics.width / 3
+  end
+
+  def refresh
+    contents.clear
+    draw_text_ex(0, 0, "\\c[16]#{@name}") if @name
+  end
+
+  def update
+    super
+    self.y = Graphics.height - fitting_height(6)
+  end
+end
+
+class Game_Interpreter
+  # Open separate windows for the face graphic and name
+  def pop_up_windows(face_name = nil, face_index = 0, name = "")
+    close_pop_up_windows
+    @face_window = Window_Face.new(face_name, face_index)
+    @name_window = Window_Name.new(name)
+  end
+
+  # Close the pop-up windows if they are open
+  def close_pop_up_windows
+    if @face_window
+      @face_window.dispose
+      @face_window = nil
+    end
+    if @name_window
+      @name_window.dispose
+      @name_window = nil
+    end
+  end
+end
