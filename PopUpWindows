@@ -49,7 +49,7 @@ class Window_Name < Window_Base
 
   def refresh
     contents.clear
-    draw_text_ex(0, 0, "\\c[16]#{@name}") if @name
+    draw_text_ex(0, 0, "\\c[0]#{@name}") if @name
   end
 
   def update
