@@ -8,10 +8,10 @@
 # You can use script call and use these commands to change fonts in the NPC
 # dialogues as long as the font is in the Fonts folder of RMVXA's Graphics folder.
 # If there is not, make one yourself, and make sure the format of the font is in .ttf
-# FontManager.set_message_font("name")
-# FontManager.set_message_font_size(24)
+# set_message_font("name")
+# set_message_font_size(24)
 # The player's chosen font can be called by:
-# FontManager.reset_message_font
+# reset_message_font
 # It is that easy!
 #------------------------------------------------------------------------------
 #  Allows players to change the game's font and size in real-time.
@@ -52,51 +52,46 @@ module FontManager
     Font.default_size = 20
   end
 
-  def self.set_message_font(name)
-    return unless FONTS.include?(name)
-    if SceneManager.scene.is_a?(Scene_Map)
-      message_window = SceneManager.scene.instance_variable_get(:@message_window)
-      if message_window
-        message_window.contents.font.name = name
-        message_window.contents.clear
-      end
-    end
-  end
-  
-  def self.set_message_font_size(size)
-    return unless size.between?(MIN_SIZE, MAX_SIZE)
-    if SceneManager.scene.is_a?(Scene_Map)
-      message_window = SceneManager.scene.instance_variable_get(:@message_window)
-      if message_window
-        message_window.contents.font.size = size
-        message_window.contents.clear
-      end
-    end
+  def self.message_font
+    $game_system.message_font ||= FONTS[0]
   end
 
+  def self.message_size
+    $game_system.message_size ||= 20
+  end
+
+  def self.set_message_font(name)
+    return unless FONTS.include?(name)
+    $game_system.message_font = name
+  end
+
+  def self.set_message_size(size)
+    return unless size.between?(MIN_SIZE, MAX_SIZE)
+    $game_system.message_size = size
+  end
+  
   def self.reset_message_font
-    player_font = $game_system.font_name || FONTS[0]
-    player_size = $game_system.font_size || 20
-    if SceneManager.scene.is_a?(Scene_Map)
-      message_window = SceneManager.scene.instance_variable_get(:@message_window)
-      if message_window
-        message_window.contents.font.name = player_font
-        message_window.contents.font.size = player_size
-        message_window.contents.clear
-      end
-    end
+    $game_system.message_font = $game_system.font_name
+    $game_system.message_size = $game_system.font_size
   end
 end
 
-class Game_System
-  attr_accessor :font_name, :font_size
+#==============================================================================
+# Game_System
+#------------------------------------------------------------------------------
+#  Saves the font choices and font of the NPC
+#==============================================================================
 
+class Game_System
+  attr_accessor :font_name, :font_size, :message_font, :message_size
   alias font_system_initialize initialize
   def initialize
     font_system_initialize
     @font_name ||= FontManager::FONTS[0]
     @font_size ||= 20
-  end
+    @message_font ||= FontManager::FONTS[0]
+    @message_size ||= 20
+  end  
 end
 
 #==============================================================================
@@ -139,7 +134,7 @@ class Window_FontOptions < Window_Command
     self.width = 300
     self.height = fitting_height(3)
     self.x = (Graphics.width - width) / 2
-    self.y = (Graphics.height - height) / 3
+    self.y = (Graphics.height - height) / 2
     refresh
     open
     activate
@@ -192,7 +187,7 @@ class Window_FontList < Window_Command
     self.width = 300
     self.height = fitting_height(FontManager::FONTS.size + 1)
     self.x = (Graphics.width - width) / 2
-    self.y = (Graphics.height - height) / 3
+    self.y = (Graphics.height - height) / 2
     refresh
     select(FontManager::FONTS.index(FontManager.font) || 0)
     activate
@@ -221,8 +216,8 @@ class Scene_FontList < Scene_MenuBase
   def select_font
     selected_font = FontManager::FONTS[@font_list_window.index]
     FontManager.set_font(selected_font)
-    @font_list_window.refresh  # ✅ Keeps the window active after selecting
-    @font_list_window.activate # ✅ Fixes freezing issue
+    @font_list_window.refresh
+    @font_list_window.activate
   end
 
   def return_to_font_menu
@@ -240,9 +235,9 @@ class Window_FontSize < Window_Command
   def initialize
     super(0, 0)
     self.width = 300
-    self.height = fitting_height(5)
+    self.height = fitting_height(4)
     self.x = (Graphics.width - width) / 2
-    self.y = (Graphics.height - height) / 3
+    self.y = (Graphics.height - height) / 2
     refresh
     activate
   end
@@ -303,7 +298,7 @@ class Window_MenuCommand < Window_Command
   alias font_add_original_add_main_commands add_main_commands
   def add_main_commands
     font_add_original_add_main_commands
-    add_command("Font Settings", :font_settings, true)
+    add_command("Font", :font_settings, true)
   end
 end
 
@@ -316,6 +311,52 @@ class Scene_Menu < Scene_MenuBase
 
   def goto_font_scene
     SceneManager.call(Scene_FontSettings)
+  end
+end
+
+#==============================================================================
+# Window_Message
+#------------------------------------------------------------------------------
+#  Makes sure that the NPC dialogue has a separate data for font name and size
+#==============================================================================
+
+class Window_Message < Window_Base
+  alias font_original_initialize initialize
+
+  def initialize
+    font_original_initialize
+    apply_message_font
+  end
+
+  def apply_message_font
+    self.contents.font.name = FontManager.message_font
+    self.contents.font.size = FontManager.message_size
+  end
+
+  alias font_original_new_page new_page
+  def new_page(text, pos)
+    font_original_new_page(text, pos)
+    apply_message_font
+  end
+end
+
+#==============================================================================
+# Game_Interpreter
+#------------------------------------------------------------------------------
+#  To make it so it can be interpreted by the game's default interpreter
+#==============================================================================
+
+class Game_Interpreter
+  def change_message_font(name)
+    FontManager.set_message_font(name)
+  end
+
+  def change_message_size(size)
+    FontManager.set_message_size(size)
+  end
+  
+  def reset_message_font
+    FontManager.reset_message_font
   end
 end
 
